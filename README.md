@@ -51,3 +51,7 @@ Ensure you have Python 3.x installed. You will also need the following dependenc
 ## Disclaimer
 
 **Educational Use Only.** This software is intended for educational purposes, self-monitoring, or authorized testing only. The developers assume no liability and are not responsible for any misuse or damage caused by this program. Always ensure you have explicit permission before monitoring any system.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
