@@ -149,18 +149,15 @@ flowchart TD
 
 ```bash
 # 1. Install dependencies
-pip install -r requirements.txt
+pip install flask pynput
 
-# 2. Configure environment (copy example template)
-cp .env.example .env
-
-# 3. Run the hardened application
+# 2. Run the application
 python ShadowTrace.py
 ```
 
 ### 🌐 Accessing Dashboard
-- **Local machine**: `http://localhost:5005` (or `http://127.0.0.1:5005`)
-- **Telemetry HUD**: Direct real-time terminal display with built-in XSS filtering, rate limiting, and strict security headers.
+- **Local machine**: `http://localhost:5005`
+- **LAN devices**: `http://<YOUR_LOCAL_IP>:5005`
 
 ---
 
@@ -169,7 +166,7 @@ python ShadowTrace.py
 <details open>
 <summary><b>📡 <code>GET /update</code> — Stream Live Feed & Counter</b></summary>
 
-Polled every **500ms** by the web terminal JavaScript (Rate-limited to 120 req/min).
+Polled every **500ms** by the web terminal JavaScript.
 
 ```json
 {
@@ -182,7 +179,7 @@ Polled every **500ms** by the web terminal JavaScript (Rate-limited to 120 req/m
 <details open>
 <summary><b>🛑 <code>POST /reset</code> — Clear Stored Buffer</b></summary>
 
-Accepts `POST` requests to clear `log_storage` and reset `clean_text` (Rate-limited to 10 req/min).
+Clears `log_storage` and resets `clean_text`.
 
 ```json
 {
@@ -214,7 +211,7 @@ Distributed under the **[MIT License](LICENSE)**.
 ⭐ **Star this repository if you find ShadowTrace helpful!** ⭐
 
 <p style="font-family: 'Bookman Old Style', 'URW Bookman', serif; color: #64748b; margin-top: 8px;">
-  Crafted with ⚡ by **Cyber Defense Engineering**
+ 
 </p>
 
 </div>
