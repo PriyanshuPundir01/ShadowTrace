@@ -1,0 +1,4 @@
+Flask>=2.2.5
+pynput>=1.8.1
+python-dotenv>=1.0.0
+Werkzeug>=3.0.0
