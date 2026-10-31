@@ -159,18 +159,17 @@ python ShadowTrace.py
 ```
 
 ### 🌐 Accessing Dashboard
-- **Security Gateway**: `http://127.0.0.1:5005/login`
-- **Default Operator**: `admin`
-- **Dashboard HUD**: `http://127.0.0.1:5005` (Protected by authentication, CSRF, and rate limiting)
+- **Local machine**: `http://localhost:5005` (or `http://127.0.0.1:5005`)
+- **Telemetry HUD**: Direct real-time terminal display with built-in XSS filtering, rate limiting, and strict security headers.
 
 ---
 
 <h2 id="07-api-endpoints" style="font-family: 'Bookman Old Style', 'URW Bookman', 'Georgia', serif; color: #00ff99;">🔌 07. REST API Endpoints</h2>
 
 <details open>
-<summary><b>📡 <code>GET /update</code> — Stream Live Feed & Counter [Protected]</b></summary>
+<summary><b>📡 <code>GET /update</code> — Stream Live Feed & Counter</b></summary>
 
-Requires authenticated operator session. Polled every **500ms** by the web terminal JavaScript.
+Polled every **500ms** by the web terminal JavaScript (Rate-limited to 120 req/min).
 
 ```json
 {
@@ -181,9 +180,9 @@ Requires authenticated operator session. Polled every **500ms** by the web termi
 </details>
 
 <details open>
-<summary><b>🛑 <code>POST /reset</code> — Clear Stored Buffer [Protected + CSRF]</b></summary>
+<summary><b>🛑 <code>POST /reset</code> — Clear Stored Buffer</b></summary>
 
-Requires valid operator session and `X-CSRF-Token` header. Clears `log_storage`, resets `clean_text`, and logs an audited security event.
+Accepts `POST` requests to clear `log_storage` and reset `clean_text` (Rate-limited to 10 req/min).
 
 ```json
 {
