@@ -149,24 +149,28 @@ flowchart TD
 
 ```bash
 # 1. Install dependencies
-pip install flask pynput
+pip install -r requirements.txt
 
-# 2. Run the application
+# 2. Configure environment (copy example template)
+cp .env.example .env
+
+# 3. Run the hardened application
 python ShadowTrace.py
 ```
 
 ### 🌐 Accessing Dashboard
-- **Local machine**: `http://localhost:5005`
-- **LAN devices**: `http://<YOUR_LOCAL_IP>:5005`
+- **Security Gateway**: `http://127.0.0.1:5005/login`
+- **Default Operator**: `admin`
+- **Dashboard HUD**: `http://127.0.0.1:5005` (Protected by authentication, CSRF, and rate limiting)
 
 ---
 
 <h2 id="07-api-endpoints" style="font-family: 'Bookman Old Style', 'URW Bookman', 'Georgia', serif; color: #00ff99;">🔌 07. REST API Endpoints</h2>
 
 <details open>
-<summary><b>📡 <code>GET /update</code> — Stream Live Feed & Counter</b></summary>
+<summary><b>📡 <code>GET /update</code> — Stream Live Feed & Counter [Protected]</b></summary>
 
-Polled every **500ms** by the web terminal JavaScript.
+Requires authenticated operator session. Polled every **500ms** by the web terminal JavaScript.
 
 ```json
 {
@@ -177,9 +181,9 @@ Polled every **500ms** by the web terminal JavaScript.
 </details>
 
 <details open>
-<summary><b>🛑 <code>POST /reset</code> — Clear Stored Buffer</b></summary>
+<summary><b>🛑 <code>POST /reset</code> — Clear Stored Buffer [Protected + CSRF]</b></summary>
 
-Clears `log_storage` and resets `clean_text`.
+Requires valid operator session and `X-CSRF-Token` header. Clears `log_storage`, resets `clean_text`, and logs an audited security event.
 
 ```json
 {
@@ -211,7 +215,7 @@ Distributed under the **[MIT License](LICENSE)**.
 ⭐ **Star this repository if you find ShadowTrace helpful!** ⭐
 
 <p style="font-family: 'Bookman Old Style', 'URW Bookman', serif; color: #64748b; margin-top: 8px;">
- 
+  Crafted with ⚡ by **Cyber Defense Engineering**
 </p>
 
 </div>
