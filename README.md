@@ -211,7 +211,8 @@ Distributed under the **[MIT License](LICENSE)**.
 ⭐ **Star this repository if you find ShadowTrace helpful!** ⭐
 
 <p style="font-family: 'Bookman Old Style', 'URW Bookman', serif; color: #64748b; margin-top: 8px;">
- 
+  Crafted with ⚡ by <b>Priyanshu Pundir</b>
 </p>
+
 
 </div>
